@@ -21,34 +21,34 @@ impl Plugin for RepliconMatchboxServerPlugin {
                 received_disconnect.run_if(resource_exists::<MatchboxHost>),
             )
                 .chain()
-                .in_set(ServerSet::ReceivePackets),
+                .in_set(ServerSystems::ReceivePackets),
         );
         app.add_systems(
             PostUpdate,
             (
                 update_client_presence
-                    .in_set(ServerSet::SendPackets)
+                    .in_set(ServerSystems::SendPackets)
                     .run_if(resource_exists::<MatchboxHost>),
                 send_packets
-                    .in_set(ServerSet::SendPackets)
+                    .in_set(ServerSystems::SendPackets)
                     .run_if(resource_exists::<MatchboxHost>)
                     .after(update_client_presence)
                     .before(received_disconnect),
                 set_stopped
-                    .in_set(ServerSet::Send)
+                    .in_set(ServerSystems::Send)
                     .run_if(resource_removed::<MatchboxHost>),
             ),
         );
     }
 }
 
-fn set_stopped(mut server: ResMut<RepliconServer>) {
+fn set_stopped(mut server: ResMut<NextState<ServerState>>) {
     trace!("server stopped");
-    server.set_running(false);
+    server.set(ServerState::Stopped);
 }
 
-fn set_running(mut server: ResMut<RepliconServer>) {
-    server.set_running(true);
+fn set_running(mut server: ResMut<NextState<ServerState>>) {
+    server.set(ServerState::Running);
 }
 
 fn update_client_presence(mut commands: Commands, mut server: ResMut<MatchboxHost>) {
@@ -134,7 +134,7 @@ fn receive_system_channel_packets(mut commands: Commands, mut server: ResMut<Mat
 }
 
 fn receive_packets(
-    mut replicon_server: ResMut<RepliconServer>,
+    mut replicon_server: ResMut<ServerMessages>,
     mut server: ResMut<MatchboxHost>,
     channels: Res<RepliconChannels>,
 ) {
@@ -152,7 +152,7 @@ fn receive_packets(
 
 fn send_packets(
     mut commands: Commands,
-    mut replicon_server: ResMut<RepliconServer>,
+    mut replicon_server: ResMut<ServerMessages>,
     mut server: ResMut<MatchboxHost>,
     clients: Query<&MatchboxClientConnection>,
 ) {
@@ -196,18 +196,15 @@ fn send_packets(
 }
 
 fn received_disconnect(
-    mut disconnect_events: EventReader<DisconnectRequest>,
+    mut disconnect_events: MessageReader<DisconnectRequest>,
     mut server: ResMut<MatchboxHost>,
     client_connections: Query<&MatchboxClientConnection>,
 ) {
     for event in disconnect_events.read() {
-        let Ok(connection) = client_connections.get(event.client_entity) else {
+        let Ok(connection) = client_connections.get(event.client) else {
             continue;
         };
-        trace!(
-            "queuing disconnecting client `{}` by request",
-            event.client_entity
-        );
+        trace!("queuing disconnecting client `{}` by request", event.client);
         server.clients_to_disconnect.push(connection.peer_id);
     }
 }
