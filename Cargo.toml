@@ -60,3 +60,27 @@ required-features = ["server", "client"]
 [[example]]
 name = "tic_tac_toe"
 required-features = ["server", "client"]
+
+[[example]]
+name = "tic_tac_toe_wasm_client"
+required-features = ["client", "server"]
+
+# WASM-specific dependencies - enables WebGL backend for wgpu
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = ["Window", "Location"] }
+wasm-bindgen = "0.2"
+
+# WASM-specific dev-dependencies - ensures render features are enabled for examples
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+bevy = { version = "0.17", default-features = false, features = [
+  "bevy_gizmos",
+  "bevy_text",
+  "bevy_ui_picking_backend",
+  "bevy_ui_render",
+  "bevy_window",
+  "bevy_render",
+  "default_font",
+  "debug",
+  "serialize",
+  "webgl2"
+] }
